@@ -731,3 +731,36 @@ html, body, #root {
   0%, 100% { opacity: 1; }
   50%       { opacity: 0; }
 }
+
+/* ── SIDEBAR FOOTER ── */
+.sidebar-footer {
+  display: flex;
+  gap: 8px;
+  padding: 12px 10px;
+  border-top: 1px solid var(--horizon);
+  flex-shrink: 0;
+}
+
+.sidebar-io-btn {
+  flex: 1;
+  padding: 8px 0;
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'DM Sans', sans-serif;
+  color: var(--text-mid);
+  background: var(--sky-pale);
+  border: 1.5px solid var(--horizon);
+  border-radius: 10px;
+  cursor: pointer;
+  text-align: center;
+  transition: all var(--transition);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.sidebar-io-btn:hover {
+  background: var(--sky-light);
+  border-color: var(--sky);
+  color: var(--text-dark);
+}

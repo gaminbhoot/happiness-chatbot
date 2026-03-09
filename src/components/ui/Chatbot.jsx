@@ -137,11 +137,16 @@ export default function HappinessChat() {
       const id   = localStorage.getItem(ACTIVE_KEY);
       const hist = loadHistory();
       const found = hist.find(c => c.id === id) || hist[0] || null;
-      // Hydrate mood.prompt which isn't stored
       return found ? { ...found, mood: hydrateMood(found.mood) } : null;
     } catch { return null; }
   });
-  const [showMood,    setShowMood]    = useState(() => !localStorage.getItem(ACTIVE_KEY));
+  // Only show mood screen if there's genuinely no history at all
+  const [showMood, setShowMood] = useState(() => {
+    try {
+      const hist = loadHistory();
+      return hist.length === 0;
+    } catch { return true; }
+  });
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [input,       setInput]       = useState("");
   const [loading,     setLoading]     = useState(false);
@@ -194,6 +199,40 @@ export default function HappinessChat() {
       return updated;
     });
     if (active?.id === id) newChat();
+  };
+
+  const exportChats = () => {
+    const data = JSON.stringify(history, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url  = URL.createObjectURL(blob);
+    const a    = document.createElement("a");
+    a.href     = url;
+    a.download = `abhisar-chats-${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const importChats = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const imported = JSON.parse(ev.target.result);
+        if (!Array.isArray(imported)) throw new Error("Invalid format");
+        setHistory(prev => {
+          const existingIds = new Set(prev.map(c => c.id));
+          const merged = [...imported.filter(c => !existingIds.has(c.id)), ...prev];
+          saveHistory(merged);
+          return merged;
+        });
+        alert(`✅ Imported ${imported.length} chats!`);
+      } catch {
+        alert("❌ Invalid file — please use a valid Abhisar backup.");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
   };
 
   const sendMessage = async () => {
@@ -284,6 +323,13 @@ export default function HappinessChat() {
               <button className="sidebar-delete-btn" onClick={(e) => deleteConvo(e, convo.id)}>✕</button>
             </div>
           ))}
+        </div>
+        <div className="sidebar-footer">
+          <button className="sidebar-io-btn" onClick={exportChats}>⬇ Export</button>
+          <label className="sidebar-io-btn">
+            ⬆ Import
+            <input type="file" accept=".json" onChange={importChats} style={{ display: "none" }} />
+          </label>
         </div>
       </aside>
 
