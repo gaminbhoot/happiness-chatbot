@@ -715,3 +715,19 @@ html, body, #root {
   line-height: 1;
   flex-shrink: 0;
 }
+
+/* ── STREAMING CURSOR ── */
+.bubble.bot.streaming::after {
+  content: '▋';
+  display: inline-block;
+  color: var(--sky);
+  animation: blink-cursor 0.7s step-end infinite;
+  margin-left: 2px;
+  font-size: 13px;
+  vertical-align: middle;
+}
+
+@keyframes blink-cursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
