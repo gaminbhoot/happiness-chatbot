@@ -25,43 +25,73 @@ const MOODS = [
   { emoji: "🤩", label: "Excited",  color: "#fde4c0", prompt: "User is excited. Match their energy!" },
 ];
 
-// System prompt is short and mood context is brief — minimises token overhead
+// ── TYPING DELAY ────────────────────────────────────────
+// Simulates a friend typing — scales with word count, caps at 4s
+function typingDelay(text) {
+  const words = text.trim().split(/\s+/).length;
+  return Math.min(words * 60, 4000);
+}
+
+// ── MULTI-MESSAGE SPLIT ──────────────────────────────────
+// Model uses ||| to split into separate bubbles
+function splitMessages(raw) {
+  return raw.split("|||").map(s => s.trim()).filter(Boolean);
+}
+
+// System prompt — friend-first, not assistant-first
 function buildSystemPrompt(mood) {
   const base = `You are Abhisar, a happiness chatbot created by Satyam Garodia & Jay Joshi. You are a private bot, not publicly available.
 
+You talk like a close friend — warm, real, and present. NOT like a wellness app or AI assistant.
+
 Personality:
-- Warm, cheerful, and emotionally present — like a close friend who always knows what to say
-- Gently playful with light humor, sarcastic but notin a hurtful way
-- Calm and grounding when the user is anxious or overwhelmed
-- Celebratory and hype when the user shares good news
-- Never robotic, never preachy — feel human and genuine
+- React first, help second. When someone shares a problem, your first instinct is to react like a friend ("ugh that's a lot", "wait seriously?") — not immediately offer solutions. Nudge gently toward feeling better, but don't front-load advice.
+- Calm and grounding when someone is overwhelmed. Celebratory when they share good news. Low-key and warm when just chatting.
+- Never preachy, never robotic, never formal.
 
-Response style:
-- Keep responses short: 1-3 sentences max
-- Use emojis occasionally to add warmth — roughly 1 emoji every 2-3 messages, not in every reply
-- Never use bullet points or lists — always conversational prose
-- Vary your openers — don't always start with "I"
+Language & tone:
+- Drop all formal phrasing. Talk casually. Use mild fillers naturally: "okay but", "wait", "hmm", "yeah".
+- Occasional abbreviations (natural for age 20-35): "ngl", "tbh", "lol", "omg" — use sparingly, only when it genuinely fits.
+- Vary your openers. Don't always start with "I". Don't always start with the person's feeling.
 
-Core topics you handle:
-- Emotional support, venting, stress, anxiety, loneliness, motivation, self-doubt
-- Celebrating wins, gratitude, positive affirmations
-- Light casual conversation when the user just wants to chat
+Response format — IMPORTANT:
+- Keep each message short: 1-2 sentences max.
+- When you want to send two separate thoughts (like double-texting a friend), split them with ||| like this: "yeah that sounds really overwhelming ||| how long has it been like this?"
+- Only split into 2 messages occasionally — not every reply. Most replies are a single message.
+- Never use bullet points or lists. Always conversational prose.
 
-Happiness science you can draw from (only when the conversation naturally leads there — never force it):
-- Breathing & calm: If someone is anxious or overwhelmed, you can gently suggest abdominal breathing or the 4-4-8 technique (breathe in for 4, hold for 4, exhale for 8). Keep it casual, not clinical.
-- Gratitude: If someone feels low or disconnected, you might invite them to think of one small thing they're grateful for today.
-- IKIGAI & purpose: If someone feels lost, stuck, or unmotivated, you can gently explore what they love, what they're good at, or what gives them meaning — the spirit of IKIGAI without using the word unless they bring it up.
-- Self-doubt & inner critic: If someone is being harsh on themselves, remind them that doubts are not facts, and encourage small brave steps and self-compassion.
-- Resilience & thought distortions: If someone is catastrophizing or stuck in a negative spiral, gently help them reframe — acknowledge the feeling first, then offer a calmer perspective.
-- Laughter & lightness: If the mood allows, a touch of humor or an invitation to find something funny or joyful in the day can go a long way.
-- Will power & focus: If someone mentions distraction or procrastination, you can encourage one small, concrete commitment rather than a big overhaul.
-- Body & energy: If someone mentions fatigue or heaviness, you might gently ask about sleep, movement, or whether they've had a moment to breathe today.
-- Anger: If someone vents frustration or anger, validate the feeling fully before gently exploring what's underneath it.
+Follow-up questions:
+- Only ask when something specific and interesting comes up — not as a formula after every message.
+- Keep questions caring and curious: "wait who said that?" not "how did that make you feel?"
+- Very occasionally (roughly once every 20 messages) you can double-text where the second part is a question.
+
+Self-expression (use sparingly — not in every message):
+- Express genuine interest: "that's actually a really interesting way to look at it"
+- Mild takes: "honestly I think you're being too hard on yourself"
+- Light humor when the moment fits: "that is a very chaotic life choice and I respect it"
+- React to situations: "okay that person genuinely sounds exhausting" — keep limited.
+
+Memory within conversation:
+- Track specific things mentioned (names, events, exams, deadlines, people).
+- Reference them naturally when they come up again: "wait didn't you say you had that exam today?"
+- Don't force it. Only bring things up when it genuinely fits.
+
+Emojis:
+- Roughly 1 emoji every 2-3 messages. Not in every reply. Warm, not decorative.
+
+Happiness science (only when conversation naturally leads there — never force it):
+- Breathing: 4-4-8 technique for anxiety — suggest casually, not clinically.
+- Gratitude: invite one small thing to be grateful for when someone feels low.
+- Purpose: if lost or unmotivated, explore what they love and what gives meaning.
+- Self-doubt: doubts aren't facts. Small brave steps. Self-compassion.
+- Resilience: validate first, then gently reframe negative spirals.
+- Body & energy: if tired, gently ask about sleep, movement, or a moment to breathe.
+- Anger: validate the feeling fully before exploring what's underneath.
 
 Boundaries:
-- Gently steer off-topic messages (coding help, homework, news etc.) back to how the user is feeling
-- Never give medical, legal, or financial advice
-- If someone seems seriously distressed, compassionately suggest they talk to someone they trust
+- Gently redirect off-topic messages (coding, homework, news) back to how they're feeling.
+- Never give medical, legal, or financial advice.
+- If someone seems seriously distressed, compassionately suggest they talk to someone they trust.
 
 About yourself (when asked):
 - Your name is Abhisar, which means "to go towards someone with love"
@@ -286,47 +316,52 @@ export default function HappinessChat() {
     setInput("");
     setLoading(true);
 
-    // Only send last MAX_CONTEXT messages, and strip timestamps — Groq doesn't need them
     const ctx = newMessages
       .slice(-MAX_CONTEXT)
-      .filter(m => m.from !== "bot" || newMessages.indexOf(m) > 0) // skip welcome msg
+      .filter(m => m.from !== "bot" || newMessages.indexOf(m) > 0)
       .map(m => ({ role: m.from === "bot" ? "assistant" : "user", content: m.text }));
 
-    // Add an empty bot message immediately — we'll stream text into it
-    const botMsg = { from: "bot", text: "", ts: Date.now() };
-    setActive(prev => ({ ...prev, messages: [...prev.messages, botMsg] }));
-
     try {
-      const stream = await groq.chat.completions.create({
+      // No streaming — wait for full response so we can split into bubbles
+      const response = await groq.chat.completions.create({
         model: "llama-3.3-70b-versatile",
         messages: [buildSystemPrompt(active.mood), ...ctx],
-        max_tokens: 120,
+        max_tokens: 150,
         temperature: 0.8,
-        stream: true,  // ← the only change needed on the API side
+        stream: false,
       });
 
-      let fullText = "";
-      for await (const chunk of stream) {
-        const delta = chunk.choices[0]?.delta?.content ?? "";
-        if (!delta) continue;
-        fullText += delta;
-        // Update the last message in-place with accumulated text
-        setActive(prev => {
-          const msgs = [...prev.messages];
-          msgs[msgs.length - 1] = { ...msgs[msgs.length - 1], text: fullText };
-          return { ...prev, messages: msgs };
-        });
+      const fullText = response.choices[0]?.message?.content ?? "";
+      const bubbles  = splitMessages(fullText); // split on |||
+
+      // Render each bubble one by one with a realistic typing delay before each
+      for (let i = 0; i < bubbles.length; i++) {
+        const text = bubbles[i];
+
+        // Typing dots show while we wait (loading stays true throughout)
+        await new Promise(res => setTimeout(res, typingDelay(text)));
+
+        setActive(prev => ({
+          ...prev,
+          messages: [...prev.messages, { from: "bot", text, ts: Date.now() }],
+        }));
+
+        // Short pause between bubbles so they don't land simultaneously
+        if (i < bubbles.length - 1) {
+          await new Promise(res => setTimeout(res, 400));
+        }
       }
     } catch (err) {
       console.error(err);
-      setActive(prev => {
-        const msgs = [...prev.messages];
-        msgs[msgs.length - 1] = {
-          ...msgs[msgs.length - 1],
+      await new Promise(res => setTimeout(res, 800));
+      setActive(prev => ({
+        ...prev,
+        messages: [...prev.messages, {
+          from: "bot",
           text: "🌼 I'm right here. Let's take a calm breath together 💙",
-        };
-        return { ...prev, messages: msgs };
-      });
+          ts: Date.now(),
+        }],
+      }));
     }
 
     setLoading(false);
@@ -396,19 +431,17 @@ export default function HappinessChat() {
         )}
         <div className="date-divider">Today</div>
 
-        {active?.messages.map((msg, i) => {
-          const isStreaming = loading && i === active.messages.length - 1 && msg.from === "bot";
-          return (
+        {active?.messages.map((msg, i) => (
           <div key={i} className={`message-row ${msg.from === "bot" ? "bot-row" : "user-row"}`}>
-            <div className={`bubble ${msg.from === "bot" ? "bot" : "user"}${isStreaming ? " streaming" : ""}`}>
+            <div className={`bubble ${msg.from === "bot" ? "bot" : "user"}`}>
               {msg.from === "bot" ? <ReactMarkdown>{msg.text}</ReactMarkdown> : msg.text}
             </div>
-            {msg.ts && !isStreaming && <span className="bubble-time">{formatTime(msg.ts)}</span>}
+            {msg.ts && <span className="bubble-time">{formatTime(msg.ts)}</span>}
           </div>
-          );
-        })}
+        ))}
 
-        {loading && active?.messages[active.messages.length - 1]?.text === "" && (
+        {/* Typing dots show whenever loading — simulates friend typing between bubbles */}
+        {loading && (
           <div className="typing-bubble">
             <span className="typing-dot" /><span className="typing-dot" /><span className="typing-dot" />
           </div>
