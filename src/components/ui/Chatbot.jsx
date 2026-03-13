@@ -29,13 +29,19 @@ const MOODS = [
 // Simulates a friend typing — scales with word count, caps at 4s
 function typingDelay(text) {
   const words = text.trim().split(/\s+/).length;
-  return Math.min(words * 60, 4000);
+  // Base: 400ms per word, min 5s, max 10s — feels like a real person typing
+  return Math.max(5000, Math.min(words * 400, 10000));
 }
 
 // ── MULTI-MESSAGE SPLIT ──────────────────────────────────
 // Model uses ||| to split into separate bubbles
 function splitMessages(raw) {
-  return raw.split("|||").map(s => s.trim()).filter(Boolean);
+  const parts = raw.split("|||").map(s => s.trim()).filter(Boolean);
+  if (parts.length <= 1) return parts;
+  // Roll 20-30% chance to actually split into separate bubbles.
+  // The rest of the time, stitch back into one message so the bot
+  // doesn't double-text on every single reply.
+  return Math.random() < 0.25 ? parts : [parts.join(" ")];
 }
 
 // System prompt — friend-first, not assistant-first
