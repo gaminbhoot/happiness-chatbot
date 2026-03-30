@@ -30,7 +30,7 @@ const MOODS = [
 function typingDelay(text) {
   const words = text.trim().split(/\s+/).length;
   // Base: 400ms per word, min 5s, max 10s — feels like a real person typing
-  return Math.max(5000, Math.min(words * 400, 10000));
+  return Math.max(3000, Math.min(words * 200, 6000));
 }
 
 // ── MULTI-MESSAGE SPLIT ──────────────────────────────────
@@ -354,7 +354,7 @@ export default function HappinessChat() {
 
         // Short pause between bubbles so they don't land simultaneously
         if (i < bubbles.length - 1) {
-          await new Promise(res => setTimeout(res, 400));
+          await new Promise(res => setTimeout(res, 200));
         }
       }
     } catch (err) {
