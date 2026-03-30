@@ -20,7 +20,7 @@ function App() {
         <Route path="/ai/8" element={<Navigate to="/ai/8.pdf" />} />
         <Route path="/ai/9" element={<Navigate to="/ai/9.pdf" />} />
         <Route path="/ai/10" element={<Navigate to="/ai/10.pdf" />} />
-                <Route path="/ai/1" element={<Navigate to="/ai/1.pdf" />} />
+        <Route path="/ai/1" element={<Navigate to="/ai/1.pdf" />} />
         <Route path="/2" element={<Navigate to="/ai/2.pdf" />} />
         <Route path="/3" element={<Navigate to="/ai/3.pdf" />} />
         <Route path="/4" element={<Navigate to="/ai/4.pdf" />} />
