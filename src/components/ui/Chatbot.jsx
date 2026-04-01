@@ -347,7 +347,7 @@ export default function HappinessChat() {
         const text = bubbles[i];
 
         // Typing dots show while we wait (loading stays true throughout)
-        // await new Promise(res => setTimeout(res, typingDelay(text)));
+        await new Promise(res => setTimeout(res, 1000));
 
         setActive(prev => ({
           ...prev,
